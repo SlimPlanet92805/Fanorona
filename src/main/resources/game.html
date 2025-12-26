@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Fanorona</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', monospace;
+            background: #1a1a1a;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+
+        .header {
+            background: #2d2d2d;
+            width: 100%;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            border-bottom: 1px solid #444;
+            box-sizing: border-box;
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #00e676;
+            letter-spacing: 2px;
+            margin-right: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        select, button {
+            padding: 8px 14px;
+            background: #3d3d3d;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #4d4d4d;
+            border-color: #777;
+        }
+
+        .btn-green {
+            background: #2e7d32;
+            border: none;
+        }
+
+        .btn-green:hover {
+            background: #388e3c;
+        }
+
+        .btn-red {
+            background: #c62828;
+            border: none;
+        }
+
+        .btn-red:disabled {
+            background: #3d3d3d;
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .info-panel {
+            width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .status-bar {
+            padding: 10px 20px;
+            background: #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .strategy-tag {
+            background: #FF9800;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-left: 10px;
+            display: none;
+        }
+
+        .ai-log {
+            padding: 12px 15px;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid #444;
+            color: #00e676;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+
+            height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            display: flex;
+            flex-direction: column;
+
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+            cursor: text;
+            pointer-events: auto;
+        }
+
+        .ai-log::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .ai-log::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 3px;
+        }
+
+        .status-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ddd;
+            letter-spacing: 1px;
+        }
+
+        .mem-text {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+        }
+
+        #board-wrap {
+            position: relative;
+            width: 900px;
+            height: 500px;
+            margin-bottom: 20px;
+            pointer-events: auto;
+            background: #252525;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .svg-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #lines line {
+            stroke: #555;
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        .piece {
+            position: absolute;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            margin-left: -26px;
+            margin-top: -26px;
+            z-index: 10;
+            transition: transform 0.3s ease-out, left 0.7s cubic-bezier(0.25, 1, 0.5, 1), top 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .piece.moving {
+            z-index: 100 !important;
+            transform: scale(1.15);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+        }
+
+        .p1 {
+            background: #e0e0e0;
+            border: 2px solid #999;
+        }
+
+        .p2 {
+            background: #111;
+            border: 2px solid #000;
+        }
+
+        .source {
+            cursor: pointer;
+            box-shadow: 0 0 0 3px #00e676;
+            animation: pulse 1.5s infinite;
+        }
+
+        .selected {
+            transform: scale(1.2);
+            box-shadow: 0 0 0 4px #2196f3;
+            z-index: 20;
+        }
+
+        .inactive {
+            opacity: 0.8;
+            filter: brightness(0.5);
+            cursor: default;
+        }
+
+        .target {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #00e676;
+            border-radius: 50%;
+            margin-left: -12px;
+            margin-top: -12px;
+            z-index: 30;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00e676;
+            opacity: 0.8;
+            transition: transform 0.2s;
+        }
+
+        .target:hover {
+            transform: scale(1.4);
+            background: #69f0ae;
+            opacity: 1;
+        }
+
+        .victim {
+            cursor: pointer;
+            z-index: 25;
+            animation: shake 0.5s infinite;
+        }
+
+        .victim-A {
+            box-shadow: 0 0 0 3px #ff1744;
+        }
+
+        .victim-B {
+            box-shadow: 0 0 0 3px #d500f9;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 6px rgba(0, 230, 118, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 230, 118, 0);
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-3px);
+            }
+            75% {
+                transform: translateX(3px);
+            }
+        }
+
+        #game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 60;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            pointer-events: auto;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        #game-over-overlay.visible {
+            opacity: 1;
+        }
+
+        #winner-text {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid #00e676;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+            display: none;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .traj-line {
+            stroke: #00e676;
+            stroke-width: 4;
+            stroke-dasharray: 10;
+            animation: dash 1s linear infinite;
+            filter: drop-shadow(0 0 5px #00e676);
+        }
+
+        .traj-circle {
+            fill: rgba(0, 230, 118, 0.1);
+            stroke: #00e676;
+            stroke-width: 2;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -20;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-title">Fanorona</div>
+    <select id="side">
+        <option value="1">Play as White (First)</option>
+        <option value="-1">Play as Black (Second)</option>
+    </select>
+    <button class="btn-green" onclick="triggerRestart()">New Game</button>
+    <button class="btn-red" id="stop-btn" onclick="sendStop()" disabled>Stop Combo</button>
+    <button id="flip-btn" onclick="toggleFlip()">Flip View</button>
+</div>
+
+<div class="info-panel">
+    <div class="status-bar">
+        <div style="display:flex; align-items:center;">
+            <div id="status-spinner" class="spinner"></div>
+            <div id="status-text" class="status-text">Connecting to Server...</div>
+            <div id="strategy-tag" class="strategy-tag">MODE</div>
+        </div>
+        <div id="mem-stats" class="mem-text">Mem: 0</div>
+    </div>
+    <div id="ai-pv" class="ai-log">AI Thinking Log...</div>
+</div>
+
+<div id="board-wrap" onclick="onBgClick(event)">
+    <svg id="lines" class="svg-layer"></svg>
+    <svg id="trajectory" class="svg-layer">
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#00e676"/>
+            </marker>
+        </defs>
+    </svg>
+    <div id="layer"></div>
+    <div id="game-over-overlay">
+        <div id="winner-text">GAME OVER</div>
+        <button class="btn-green" onclick="triggerRestart()">Play Again</button>
+    </div>
+</div>
+
+<script>
+    const ROWS = 5, COLS = 9, S = 100, OX = 50, OY = 50;
+    let currentGameId = 0;
+    let boardState = [];
+    let currentPlayer = 1;
+    let comboInfo = {inCombo: false, comboPiece: null, prevPos: null, visited: []};
+    let mySide = 1;
+    let gameMoves = [];
+    let selectedPieceIndex = null;
+    let isGameOver = false;
+    let lastPlayer = 1;
+    let turnTrajectory = [];
+    let isFlipped = false;
+
+    const boardWrap = document.getElementById('board-wrap');
+    const linesSvg = document.getElementById('lines');
+    const trajectorySvg = document.getElementById('trajectory');
+    const pieceLayer = document.getElementById('layer');
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const winnerText = document.getElementById('winner-text');
+    const statusSpinner = document.getElementById('status-spinner');
+    const statusText = document.getElementById('status-text');
+    const stopBtn = document.getElementById('stop-btn');
+    const sideSelect = document.getElementById('side');
+    const memStats = document.getElementById('mem-stats');
+    const aiPvLog = document.getElementById('ai-pv');
+    const strategyTag = document.getElementById('strategy-tag');
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+    function appendLog(text) {
+        const p = document.createElement('div');
+        p.innerText = `> ${text}`;
+        aiPvLog.appendChild(p);
+        aiPvLog.scrollTop = aiPvLog.scrollHeight;
+    }
+
+    function getCoord(idx) {
+        let x = idx % 9;
+        let y = Math.floor(idx / 9);
+        if (isFlipped) {
+            x = 8 - x;
+            y = 4 - y;
+        }
+        return {x: OX + x * S, y: OY + y * S};
+    }
+
+    function drawBoardLines() {
+        let h = '';
+        const line = (c1, r1, c2, r2) => {
+            let p1 = getCoord(r1 * 9 + c1);
+            let p2 = getCoord(r2 * 9 + c2);
+            return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" />`;
+        };
+        for (let r = 0; r < ROWS; r++) h += line(0, r, 8, r);
+        for (let c = 0; c < COLS; c++) h += line(c, 0, c, 4);
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 8; c++) {
+                if ((r + c) % 2 === 0) h += line(c, r, c + 1, r + 1);
+                else h += line(c + 1, r, c, r + 1);
+            }
+        }
+        linesSvg.innerHTML = h;
+    }
+
+    function drawTrajectory() {
+        let html = trajectorySvg.querySelector('defs').outerHTML;
+        turnTrajectory.forEach(move => {
+            let p1 = getCoord(move.from);
+            let p2 = getCoord(move.to);
+            html += `<circle cx="${p1.x}" cy="${p1.y}" r="15" class="traj-circle" />`;
+            html += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="traj-line" marker-end="url(#arrowhead)" />`;
+        });
+        trajectorySvg.innerHTML = html;
+    }
+
+    function renderPieces() {
+        pieceLayer.innerHTML = '';
+        boardState.forEach((v, i) => {
+            if (v === 0) return;
+            const el = document.createElement('div');
+            el.className = `piece ${v === 1 ? 'p1' : 'p2'}`;
+            el.id = `piece-${i}`;
+            let p = getCoord(i);
+            el.style.left = p.x + 'px';
+            el.style.top = p.y + 'px';
+            if (!isGameOver && currentPlayer === mySide && boardWrap.style.pointerEvents !== 'auto') {
+                if (selectedPieceIndex === i) el.classList.add('selected');
+                else el.classList.add('inactive');
+            } else if (!isGameOver && currentPlayer === mySide) {
+                if (selectedPieceIndex === i) el.classList.add('selected');
+            } else {
+                el.classList.add('inactive');
+            }
+            pieceLayer.appendChild(el);
+        });
+    }
+
+    async function animatePieceMovement(fromIndex, toIndex) {
+        return new Promise(resolve => {
+            const el = document.getElementById(`piece-${fromIndex}`);
+            if (!el) {
+                resolve();
+                return;
+            }
+            let p = getCoord(toIndex);
+            el.classList.add('moving');
+            el.style.left = p.x + 'px';
+            el.style.top = p.y + 'px';
+            let isResolved = false;
+            const finish = () => {
+                if (isResolved) return;
+                isResolved = true;
+                el.classList.remove('moving');
+                resolve();
+            };
+            el.addEventListener('transitionend', finish, {once: true});
+            setTimeout(finish, 750);
+        });
+    }
+
+    function highlightSources() {
+        if (currentPlayer !== mySide || isGameOver) return;
+        document.querySelectorAll('.piece').forEach(el => {
+            el.classList.remove('inactive', 'source');
+            el.onclick = null;
+        });
+        const sourceIndices = new Set(gameMoves.filter(m => m.type !== 'stop').map(m => m.from));
+        sourceIndices.forEach(idx => {
+            const el = document.getElementById(`piece-${idx}`);
+            if (el) {
+                el.classList.add('source');
+                el.onclick = (e) => {
+                    e.stopPropagation();
+                    selectPiece(idx);
+                };
+            }
+        });
+        if (comboInfo.inCombo && comboInfo.comboPiece !== null) selectPiece(comboInfo.comboPiece);
+    }
+
+    function selectPiece(idx) {
+        if (currentPlayer !== mySide || isGameOver) return;
+        if (selectedPieceIndex === idx && !comboInfo.inCombo) {
+            selectedPieceIndex = null;
+            refreshUI();
+            return;
+        }
+        selectedPieceIndex = idx;
+        refreshUI();
+        const movesFromHere = gameMoves.filter(m => m.from === idx);
+        const uniqueTargets = [...new Set(movesFromHere.map(m => m.to))];
+        document.querySelectorAll('.target').forEach(e => e.remove());
+        uniqueTargets.forEach(toIdx => {
+            if (comboInfo.inCombo && comboInfo.visited.includes(toIdx)) return;
+            const t = document.createElement('div');
+            t.className = 'target';
+            let p = getCoord(toIdx);
+            t.style.left = p.x + 'px';
+            t.style.top = p.y + 'px';
+            t.onclick = (e) => {
+                e.stopPropagation();
+                checkAmbiguity(idx, toIdx);
+            };
+            pieceLayer.appendChild(t);
+        });
+    }
+
+    function checkAmbiguity(from, to) {
+        const candidates = gameMoves.filter(m => m.from === from && m.to === to);
+        if (candidates.length === 1) executeMove(candidates[0]);
+        else showAmbiguity(candidates);
+    }
+
+    function showAmbiguity(moves) {
+        document.querySelectorAll('.target').forEach(e => e.remove());
+        statusText.innerText = "Choose piece to capture";
+        moves.forEach((move, i) => {
+            const cls = i === 0 ? 'victim-A' : 'victim-B';
+            move.victims.forEach(vIdx => {
+                const el = document.getElementById(`piece-${vIdx}`);
+                if (el) {
+                    el.classList.remove('inactive');
+                    el.classList.add('victim', cls);
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        executeMove(move);
+                    };
+                }
+            });
+        });
+    }
+
+    async function executeMove(move) {
+        const txId = currentGameId;
+        document.querySelectorAll('.target').forEach(e => e.remove());
+        document.querySelectorAll('.victim').forEach(e => e.classList.remove('victim', 'victim-A', 'victim-B'));
+        selectedPieceIndex = null;
+        if (move.from !== undefined && move.to !== undefined) {
+            turnTrajectory.push({from: move.from, to: move.to});
+            drawTrajectory();
+            await animatePieceMovement(move.from, move.to);
+        }
+        const payload = {
+            board: boardState, player: currentPlayer,
+            inCombo: comboInfo.inCombo, comboPiece: comboInfo.comboPiece,
+            prevPos: comboInfo.prevPos, visited: comboInfo.visited,
+            action_id: move.action_id
+        };
+        try {
+            const res = await fetch('/move', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if (currentGameId !== txId) return;
+            const d = await res.json();
+            applyServerState(d);
+            if (d.win) endGame(d.player === mySide);
+            else await nextTurn();
+        } catch (e) {
+            if (currentGameId === txId) statusText.innerText = "Network error";
+        }
+    }
+
+    async function sendStop() {
+        await executeMove({action_id: 720});
+    }
+
+    async function triggerRestart() {
+        currentGameId++;
+        const txId = currentGameId;
+        isGameOver = false;
+
+        boardState = Array(45).fill(0);
+        for (let i = 0; i < 18; i++) boardState[i] = 1;
+        for (let i = 27; i < 45; i++) boardState[i] = -1;
+        [1, -1, 1, -1, 0, 1, -1, 1, -1].forEach((v, i) => boardState[18 + i] = v);
+
+        currentPlayer = 1;
+        comboInfo = {inCombo: false, comboPiece: null, prevPos: null, visited: []};
+        selectedPieceIndex = null;
+        lastPlayer = 1;
+        turnTrajectory = [];
+        mySide = parseInt(sideSelect.value);
+
+        gameOverOverlay.classList.remove('visible');
+        setTimeout(() => gameOverOverlay.style.display = 'none', 500);
+        aiPvLog.innerText = "";
+        strategyTag.style.display = 'none';
+
+        setLoading(false);
+        refreshUI();
+
+        try {
+            statusText.innerText = "Initializing...";
+            setLoading(true);
+            await fetch('/restart', {method: 'POST'});
+            if (currentGameId !== txId) return;
+            setLoading(false);
+            await nextTurn();
+        } catch (e) {
+            console.error(e);
+            statusText.innerText = "Connection failed, please run Java server";
+            setLoading(false);
+        }
+    }
+
+    async function nextTurn() {
+        await updateMemStats();
+        if (isGameOver) return;
+        const txId = currentGameId;
+        refreshUI();
+        if (lastPlayer !== currentPlayer) {
+            turnTrajectory = [];
+            drawTrajectory();
+            lastPlayer = currentPlayer;
+        }
+        const pName = currentPlayer === 1 ? "White" : "Black";
+        statusText.innerText = `Turn: ${pName} ${comboInfo.inCombo ? "[Combo]" : ""}`;
+        statusText.style.color = currentPlayer === 1 ? "#fff" : "#aaa";
+
+        try {
+            const res = await fetch('/get_state', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    board: boardState, player: currentPlayer,
+                    inCombo: comboInfo.inCombo, comboPiece: comboInfo.comboPiece,
+                    prevPos: comboInfo.prevPos, visited: comboInfo.visited
+                })
+            });
+            if (currentGameId !== txId) return;
+            const d = await res.json();
+            gameMoves = d.moves;
+
+            if (gameMoves.length === 0 && !comboInfo.inCombo) {
+                endGame(false);
+                return;
+            }
+
+            const canStop = gameMoves.some(m => m.type === 'stop');
+            stopBtn.disabled = !canStop || (currentPlayer !== mySide);
+
+            if (currentPlayer === mySide) highlightSources();
+            else {
+                setLoading(true);
+                setTimeout(() => runAI(txId), 200);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function runAI(txId) {
+        if (currentGameId !== txId) return;
+        try {
+            statusText.innerText = "AI is thinking...";
+            const res = await fetch('/ai', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    board: boardState, player: currentPlayer,
+                    inCombo: comboInfo.inCombo, comboPiece: comboInfo.comboPiece,
+                    prevPos: comboInfo.prevPos, visited: comboInfo.visited
+                })
+            });
+            if (currentGameId !== txId) return;
+            const d = await res.json();
+
+            if (d.pv) {
+                appendLog(`Score(${d.score}): ${d.pv}`);
+            }
+
+            if (d.strategy) {
+                strategyTag.innerText = d.strategy;
+                strategyTag.style.display = 'block';
+
+                const colorMap = {
+                    "Checkmate": {bg: "#2e7d32", text: "#fff"},
+                    "Crushing": {bg: "#4caf50", text: "#fff"},
+                    "Advantage": {bg: "#8bc34a", text: "#000"},
+                    "Balanced": {bg: "#ff9800", text: "#000"},
+                    "Pressure": {bg: "#fb8c00", text: "#fff"},
+                    "Critical": {bg: "#e53935", text: "#fff"},
+                    "Defeat": {bg: "#b71c1c", text: "#fff"}
+                };
+
+                const style = colorMap[d.strategy] || {bg: "#555", text: "#fff"};
+                strategyTag.style.background = style.bg;
+                strategyTag.style.color = style.text;
+            }
+
+            const aiAction = gameMoves.find(m => m.action_id === d.action_id) || (d.action_id === 720 ? {action_id: 720} : null);
+            setLoading(false);
+
+            if (aiAction) {
+                await sleep(300); // sleep 300ms
+                await executeMove(aiAction);
+            } else if (d.action_id === 720) {
+                await sleep(300);
+                await executeMove({action_id: 720});
+            }
+        } catch (e) {
+            if (currentGameId === txId) {
+                setLoading(false);
+                statusText.innerText = "AI connection lost";
+            }
+        }
+    }
+
+    async function updateMemStats() {
+        try {
+            const r = await fetch('/memory_stats');
+            const d = await r.json();
+            memStats.innerText = `Mem: ${d.count}`;
+        } catch (e) {
+        }
+    }
+
+    function refreshUI() {
+        drawBoardLines();
+        drawTrajectory();
+        renderPieces();
+    }
+
+    function toggleFlip() {
+        isFlipped = !isFlipped;
+        const savedSelection = selectedPieceIndex;
+        selectedPieceIndex = null;
+        refreshUI();
+        if (currentPlayer === mySide && !isGameOver) {
+            highlightSources();
+            if (savedSelection !== null) {
+                const el = document.getElementById(`piece-${savedSelection}`);
+                if (el && !el.classList.contains('inactive')) {
+                    selectPiece(savedSelection);
+                }
+            }
+        }
+    }
+
+    function onBgClick(e) {
+        if (isGameOver) return;
+        if (e.target.id === 'board-wrap' || e.target.id === 'lines' || e.target.id === 'trajectory') {
+            if (selectedPieceIndex !== null && !comboInfo.inCombo && currentPlayer === mySide) {
+                selectedPieceIndex = null;
+                refreshUI();
+                highlightSources();
+            }
+        }
+    }
+
+    function setLoading(isLoading) {
+        if (isLoading) {
+            statusSpinner.style.display = 'block';
+            statusText.innerText = currentPlayer === mySide ? "Please wait.." : "AI is thinking";
+            boardWrap.style.pointerEvents = 'none';
+        } else {
+            statusSpinner.style.display = 'none';
+            boardWrap.style.pointerEvents = 'auto';
+        }
+    }
+
+    function applyServerState(d) {
+        boardState = d.board;
+        currentPlayer = d.player;
+        comboInfo = {inCombo: d.inCombo, comboPiece: d.comboPiece, prevPos: d.prevPos, visited: d.visited || []};
+    }
+
+    function endGame(win) {
+        isGameOver = true;
+        setLoading(false);
+        gameOverOverlay.style.display = 'flex';
+        setTimeout(() => gameOverOverlay.classList.add('visible'), 10);
+        winnerText.innerText = win ? "YOU WIN!" : "YOU LOSE!";
+        winnerText.style.color = win ? "#00e676" : "#ff1744";
+    }
+
+    window.onload = () => {
+        triggerRestart();
+    };
+
+</script>
+</body>
+</html>
