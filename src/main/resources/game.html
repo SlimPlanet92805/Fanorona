@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fanorona</title>
+    <!-- Inlined rather than linked so the page stays a single self-contained
+         file: the release ships game.html next to the executable, with no
+         asset directory. Mirrors docs/icon.svg, with heavier strokes because
+         the original's hairlines vanish at 16px. -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' rx='28' fill='%231a1a1a'/%3E%3Cg stroke='%23555' stroke-width='7'%3E%3Cpath d='M40 40h120M40 100h120M40 160h120M40 40v120M100 40v120M160 40v120M40 40l120 120M160 40L40 160'/%3E%3C/g%3E%3Cg fill='%23111'%3E%3Ccircle cx='40' cy='40' r='17'/%3E%3Ccircle cx='160' cy='40' r='17'/%3E%3Ccircle cx='40' cy='100' r='17'/%3E%3Ccircle cx='40' cy='160' r='17'/%3E%3Ccircle cx='160' cy='160' r='17'/%3E%3C/g%3E%3Cpath d='M100 40v52' stroke='%2300e676' stroke-width='7' stroke-dasharray='13'/%3E%3Ccircle cx='100' cy='40' r='13' fill='none' stroke='%2300e676' stroke-width='6'/%3E%3Ccircle cx='100' cy='100' r='20' fill='%23e0e0e0' stroke='%232196f3' stroke-width='7'/%3E%3Ccircle cx='160' cy='100' r='9' fill='%2300e676'/%3E%3C/svg%3E">
+    <style>
+        html, body {
+            max-width: 100%;
+            /* Without this the 900px board widens the layout viewport on a
+               phone before any script runs, and the scaling code below then
+               measures that inflated width and scales to the wrong thing. */
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', monospace;
+            background: #1a1a1a;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+
+        .header {
+            background: #2d2d2d;
+            width: 100%;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            border-bottom: 1px solid #444;
+            box-sizing: border-box;
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #00e676;
+            letter-spacing: 2px;
+            margin-right: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        select, button {
+            padding: 8px 14px;
+            background: #3d3d3d;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #4d4d4d;
+            border-color: #777;
+        }
+
+        .btn-green {
+            background: #2e7d32;
+            border: none;
+        }
+
+        .btn-green:hover {
+            background: #388e3c;
+        }
+
+        .btn-red {
+            background: #c62828;
+            border: none;
+        }
+
+        .btn-red:disabled {
+            background: #3d3d3d;
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .info-panel {
+            width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .status-bar {
+            padding: 10px 20px;
+            background: #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .strategy-tag {
+            background: #FF9800;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-left: 10px;
+            display: none;
+        }
+
+        .ai-log {
+            padding: 12px 15px;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid #444;
+            color: #00e676;
+            /* The emoji families are listed explicitly: a bare `monospace`
+               stack has no emoji coverage, so the trash talk rendered as tofu
+               boxes on some systems. */
+            font-family: 'Consolas', 'Monaco', monospace, 'Segoe UI Emoji',
+                         'Apple Color Emoji', 'Noto Color Emoji';
+            font-size: 13px;
+            line-height: 1.6;
+
+            height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            display: flex;
+            flex-direction: column;
+
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+            cursor: text;
+            pointer-events: auto;
+        }
+
+        .ai-log::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .ai-log::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 3px;
+        }
+
+        .status-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ddd;
+            letter-spacing: 1px;
+        }
+
+        .mem-text {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+        }
+
+        #board-wrap {
+            position: relative;
+            width: 900px;
+            height: 500px;
+            margin-bottom: 20px;
+            pointer-events: auto;
+            background: #252525;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        #board-scale {
+            width: 900px;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .svg-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #lines line {
+            stroke: #555;
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        .piece {
+            position: absolute;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            margin-left: -26px;
+            margin-top: -26px;
+            z-index: 10;
+            /* 0.7s per move made the game feel like it was wading through
+               treacle. 0.34s still reads as motion without making you wait. */
+            transition: transform 0.22s ease-out,
+                        opacity 0.26s ease-in,
+                        left 0.34s cubic-bezier(0.25, 1, 0.5, 1),
+                        top 0.34s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Captured pieces used to blink out of existence the instant the server
+           replied. Shrinking them away makes it obvious what was just taken. */
+        .piece.captured {
+            opacity: 0;
+            transform: scale(0.25);
+            pointer-events: none;
+        }
+
+        .piece.moving {
+            z-index: 100 !important;
+            transform: scale(1.15);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+        }
+
+        .p1 {
+            background: #e0e0e0;
+            border: 2px solid #999;
+        }
+
+        .p2 {
+            background: #111;
+            border: 2px solid #000;
+        }
+
+        .source {
+            cursor: pointer;
+            box-shadow: 0 0 0 3px #00e676;
+            animation: pulse 1.5s infinite;
+        }
+
+        .selected {
+            transform: scale(1.2);
+            box-shadow: 0 0 0 4px #2196f3;
+            z-index: 20;
+        }
+
+        .inactive {
+            opacity: 0.8;
+            filter: brightness(0.5);
+            cursor: default;
+        }
+
+        .target {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #00e676;
+            border-radius: 50%;
+            margin-left: -12px;
+            margin-top: -12px;
+            z-index: 30;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00e676;
+            opacity: 0.8;
+            transition: transform 0.2s;
+        }
+
+        .target:hover {
+            transform: scale(1.4);
+            background: #69f0ae;
+            opacity: 1;
+        }
+
+        .victim {
+            cursor: pointer;
+            z-index: 25;
+            animation: shake 0.5s infinite;
+        }
+
+        .victim-A {
+            box-shadow: 0 0 0 3px #ff1744;
+        }
+
+        .victim-B {
+            box-shadow: 0 0 0 3px #d500f9;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 6px rgba(0, 230, 118, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 230, 118, 0);
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-3px);
+            }
+            75% {
+                transform: translateX(3px);
+            }
+        }
+
+        #game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 60;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            pointer-events: auto;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        #game-over-overlay.visible {
+            opacity: 1;
+        }
+
+        #winner-text {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid #00e676;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+            display: none;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #settings-panel {
+            display: none;
+            width: 100%;
+            max-width: 760px;
+            margin: 12px auto 0;
+            padding: 16px 20px;
+            box-sizing: border-box;
+            background: #2d2d2d;
+            border: 1px solid #444;
+            border-radius: 10px;
+        }
+
+        #settings-panel.open {
+            display: block;
+        }
+
+        .settings-row {
+            display: grid;
+            grid-template-columns: 130px 1fr 220px;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .settings-row label {
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .settings-row input[type=range] {
+            width: 100%;
+            accent-color: #00e676;
+        }
+
+        .settings-row input[type=number], .settings-row select {
+            padding: 6px 10px;
+            background: #3d3d3d;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 120px;
+        }
+
+        .settings-row input[type=checkbox] {
+            width: 18px;
+            height: 18px;
+            accent-color: #00e676;
+            justify-self: start;
+        }
+
+        .settings-val {
+            font-size: 13px;
+            color: #00e676;
+            font-family: 'Consolas', monospace;
+        }
+
+        .settings-hint {
+            color: #888;
+        }
+
+        /* The difficulty hint sits on its own reserved line rather than running
+           on after the number box. Inline, a long translation wrapped onto an
+           extra line and the whole panel grew a row taller as you dragged the
+           slider -- the layout moved while you were aiming at it. Fixed height,
+           so every hint in every language occupies exactly the same space. */
+        #cfg-time-hint {
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            height: 1.35em;
+            line-height: 1.35em;
+        }
+
+        #cfg-clear-memory {
+            display: block;
+            margin-top: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            background: #4a2222;
+            border-color: #6d3030;
+        }
+
+        #cfg-clear-memory:hover {
+            background: #5d2a2a;
+        }
+
+        /* Builds without a settings endpoint (the Java reference server, or the
+           page opened straight off disk) still show the panel -- hiding it left
+           no way to reach the language picker -- but the controls that would
+           post to an engine are visibly inert rather than silently ignored. */
+        .settings-row.disabled {
+            opacity: 0.4;
+        }
+
+        .settings-row.disabled input,
+        .settings-row.disabled button {
+            pointer-events: none;
+        }
+
+        .settings-actions {
+            grid-template-columns: 1fr auto;
+            margin-top: 14px;
+            margin-bottom: 0;
+            border-top: 1px solid #444;
+            padding-top: 14px;
+        }
+
+        .traj-line {
+            stroke: #00e676;
+            stroke-width: 4;
+            stroke-dasharray: 10;
+            animation: dash 1s linear infinite;
+            filter: drop-shadow(0 0 5px #00e676);
+        }
+
+        .traj-circle {
+            fill: rgba(0, 230, 118, 0.1);
+            stroke: #00e676;
+            stroke-width: 2;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -20;
+            }
+        }
+        /* Responsive overrides live at the end of the stylesheet on purpose.
+           They have the same specificity as the base rules they override, so
+           source order decides -- and when this block sat higher up, the
+           settings-panel rules defined below it silently won and the panel
+           stayed three columns wide on a phone. */
+        /* Everything inside the board is positioned in absolute pixels against
+           a fixed 900x500 grid, so making it responsive by reflowing would mean
+           rewriting the coordinate maths. The board is scaled as a whole
+           instead, which keeps one source of truth -- and because the browser
+           accounts for transforms during hit testing, taps still land on the
+           right square.
+
+           The scale factor is set from JS (see fitBoard) rather than CSS:
+           scale() takes a unitless number, so `scale(calc(100vw / 900))` is
+           invalid and silently does nothing, which just clipped the board. */
+        @media (max-width: 940px) {
+            #board-wrap {
+                transform-origin: top left;
+                margin-bottom: 0;
+                border-radius: 0;
+            }
+
+            .info-panel {
+                width: 100%;
+                padding: 0 8px;
+                box-sizing: border-box;
+            }
+
+            .header {
+                flex-wrap: wrap;
+                gap: 8px;
+                padding: 10px;
+            }
+
+            .header-title {
+                font-size: 20px;
+                margin-right: 0;
+            }
+
+            .settings-row {
+                grid-template-columns: 1fr;
+                gap: 4px;
+            }
+
+            .settings-actions {
+                grid-template-columns: 1fr auto;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-title">Fanorona</div>
+    <select id="side">
+        <option value="1" data-i18n="sideWhite">Play as White (First)</option>
+        <option value="-1" data-i18n="sideBlack">Play as Black (Second)</option>
+    </select>
+    <button class="btn-green" onclick="triggerRestart()" data-i18n="newGame">New Game</button>
+    <button class="btn-red" id="stop-btn" onclick="sendStop()" disabled data-i18n="stopCombo">Stop Combo</button>
+    <button id="flip-btn" onclick="toggleFlip()" data-i18n="flipView">Flip View</button>
+    <button id="settings-btn" onclick="toggleSettings()" data-i18n="settings">⚙ Settings</button>
+</div>
+
+<div id="settings-panel">
+    <div class="settings-row">
+        <label for="cfg-time" data-i18n="cfgTime">Thinking time</label>
+        <input type="range" id="cfg-time" min="0" max="1000" step="1" value="600"
+               oninput="onTimeSlider()">
+        <span class="settings-val">
+            <input type="number" id="cfg-time-ms" min="1" max="600000" step="1" value="1000"
+                   oninput="onTimeNumber()"> ms
+            <span id="cfg-time-hint" class="settings-hint"></span>
+        </span>
+    </div>
+    <div class="settings-row" id="cfg-threads-row">
+        <label for="cfg-threads" data-i18n="cfgThreads">Threads</label>
+        <input type="range" id="cfg-threads" min="1" max="16" step="1" value="1"
+               oninput="document.getElementById('cfg-threads-val').innerText = this.value">
+        <span id="cfg-threads-val" class="settings-val">1</span>
+    </div>
+    <div class="settings-row">
+        <label for="cfg-depth" data-i18n="cfgDepth">Max depth</label>
+        <input type="number" id="cfg-depth" min="1" max="1000" value="1000">
+        <span class="settings-val settings-hint" data-i18n="cfgDepthHint">1000 = no limit</span>
+    </div>
+    <div class="settings-row">
+        <label for="cfg-hash" data-i18n="cfgHash">Hash size</label>
+        <input type="number" id="cfg-hash" min="1" max="8192" step="16" value="256">
+        <span class="settings-val settings-hint" data-i18n="cfgHashHint">MB — changing this clears the table</span>
+    </div>
+    <div class="settings-row">
+        <label for="cfg-debug" data-i18n="cfgDebug">Show search stats</label>
+        <input type="checkbox" id="cfg-debug">
+        <span class="settings-val settings-hint" data-i18n="cfgDebugHint">replaces the trash talk with raw numbers</span>
+    </div>
+    <div class="settings-row">
+        <label for="cfg-memory" data-i18n="cfgMemory">Keep local memory</label>
+        <input type="checkbox" id="cfg-memory" checked>
+        <span class="settings-val settings-hint">
+            <span data-i18n="cfgMemoryHint">retains the search table on this device between games</span>
+            <button id="cfg-clear-memory" onclick="clearMemory()"
+                    data-i18n="cfgClearMemory">Clear memory</button>
+        </span>
+    </div>
+    <div class="settings-row">
+        <label for="cfg-lang" data-i18n="cfgLang">Language</label>
+        <select id="cfg-lang">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+        </select>
+        <span class="settings-val"></span>
+    </div>
+    <div class="settings-row settings-actions">
+        <span id="cfg-status" class="settings-hint"></span>
+        <button class="btn-green" onclick="applySettings()" data-i18n="apply">Apply</button>
+    </div>
+</div>
+
+<div class="info-panel">
+    <div class="status-bar">
+        <div style="display:flex; align-items:center;">
+            <div id="status-spinner" class="spinner"></div>
+            <div id="status-text" class="status-text">Connecting…</div>
+            <div id="strategy-tag" class="strategy-tag">MODE</div>
+        </div>
+        <div id="mem-stats" class="mem-text">Mem: 0</div>
+    </div>
+    <div id="ai-pv" class="ai-log"></div>
+</div>
+
+<div id="board-scale">
+<div id="board-wrap" onclick="onBgClick(event)">
+    <svg id="lines" class="svg-layer"></svg>
+    <svg id="trajectory" class="svg-layer">
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#00e676"/>
+            </marker>
+        </defs>
+    </svg>
+    <div id="layer"></div>
+    <div id="game-over-overlay">
+        <div id="winner-text" data-i18n="gameOver">GAME OVER</div>
+        <button class="btn-green" onclick="triggerRestart()" data-i18n="playAgain">Play Again</button>
+    </div>
+</div>
+</div>
+
+<script>
+    const ROWS = 5, COLS = 9, S = 100, OX = 50, OY = 50;
+    let currentGameId = 0;
+    let boardState = [];
+    let currentPlayer = 1;
+    let comboInfo = {inCombo: false, comboPiece: null, prevPos: null, visited: []};
+    let mySide = 1;
+    let gameMoves = [];
+    let selectedPieceIndex = null;
+    let isGameOver = false;
+    let lastPlayer = 1;
+    let turnTrajectory = [];
+    let isFlipped = false;
+
+    const boardWrap = document.getElementById('board-wrap');
+    const linesSvg = document.getElementById('lines');
+    const trajectorySvg = document.getElementById('trajectory');
+    const pieceLayer = document.getElementById('layer');
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const winnerText = document.getElementById('winner-text');
+    const statusSpinner = document.getElementById('status-spinner');
+    const statusText = document.getElementById('status-text');
+    const stopBtn = document.getElementById('stop-btn');
+    const sideSelect = document.getElementById('side');
+    const memStats = document.getElementById('mem-stats');
+    const aiPvLog = document.getElementById('ai-pv');
+    const strategyTag = document.getElementById('strategy-tag');
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+    // ---------------------------------------------------------------- i18n
+    //
+    // One language setting drives both the interface and the engine's trash
+    // talk. Splitting them was the wrong call: a Chinese-speaking visitor got
+    // the banter in Chinese, auto-detected from the browser, wrapped in an
+    // entirely English interface.
+    //
+    // Static text is tagged with data-i18n in the markup; anything built at
+    // runtime goes through t().
+    const I18N = {
+        en: {
+            sideWhite: 'Play as White (First)', sideBlack: 'Play as Black (Second)',
+            newGame: 'New Game', stopCombo: 'Stop Combo', flipView: 'Flip View',
+            settings: '⚙ Settings', apply: 'Apply',
+            cfgTime: 'Thinking time', cfgThreads: 'Threads', cfgDepth: 'Max depth',
+            cfgDepthHint: '1000 = no limit', cfgHash: 'Hash size',
+            cfgHashHint: 'MB — changing this clears the table',
+            cfgLang: 'Language', cfgDebug: 'Show search stats',
+            hintTrivial: 'you stand a chance', hintEasy: 'beatable with effort',
+            hintHard: 'very hard', hintBrutal: 'hopeless',
+            cfgDebugHint: 'replaces the trash talk with raw numbers',
+            connecting: 'Connecting…', logPlaceholder: 'AI thinking log…',
+            gameOver: 'GAME OVER', playAgain: 'Play Again',
+            initializing: 'Initializing…', thinking: 'AI is thinking…',
+            pleaseWait: 'Please wait…', chooseVictim: 'Choose piece to capture',
+            networkError: 'Network error', aiLost: 'AI connection lost',
+            unreachable: 'Cannot reach the engine — is the server still running?',
+            youWin: 'YOU WIN!', youLose: 'YOU LOSE!',
+            white: 'White', black: 'Black', combo: '[Combo]',
+            turn: (side, combo) => `Turn: ${side} ${combo}`,
+            mem: n => `Mem: ${n}`,
+            cfgUnreachable: 'Cannot reach the engine.',
+            cfgFailed: 'Failed to apply.',
+            cfgMemory: 'Keep local memory',
+            cfgMemoryHint: 'retains the search table on this device between games',
+            cfgClearMemory: 'Clear memory',
+            cfgClearConfirm: 'Clear all memory the engine has accumulated on this device?',
+            cfgReadOnly: 'This build exposes no settings endpoint — only the language applies here.',
+            memCleared: 'Memory cleared.',
+            memRestored: n => `Memory restored: ${n} entries`,
+            cfgApplied: (t, th, h) => `Applied: ${t} ms · ${th} thread${th === 1 ? '' : 's'} · ${h} MB`,
+            cfgWasm: e => `WebAssembly build · single-threaded · evaluator: ${e}`,
+            cfgNative: (c, e) => `${c} cores available · evaluator: ${e}`,
+            bannerText: 'Running entirely in your browser — the engine is compiled to WebAssembly, no server involved.',
+            bannerLink: 'Source & native build',
+            Checkmate: 'Checkmate', Crushing: 'Crushing', Advantage: 'Advantage',
+            Balanced: 'Balanced', Pressure: 'Pressure', Critical: 'Critical',
+            Defeat: 'Defeat', Resign: 'Resign'
+        },
+        zh: {
+            sideWhite: '执白（先手）', sideBlack: '执黑（后手）',
+            newGame: '新对局', stopCombo: '结束连吃', flipView: '翻转视角',
+            settings: '⚙ 设置', apply: '应用',
+            cfgTime: '思考时间', cfgThreads: '线程数', cfgDepth: '最大深度',
+            cfgDepthHint: '1000 = 不限制', cfgHash: '置换表大小',
+            cfgHashHint: 'MB — 修改会清空置换表',
+            cfgLang: '语言 Language', cfgDebug: '显示搜索数据',
+            hintTrivial: '你有机会赢', hintEasy: '努力可胜',
+            hintHard: '很难', hintBrutal: '没戏',
+            cfgDebugHint: '用原始数据替换嘴臭话',
+            connecting: '正在连接引擎…', logPlaceholder: 'AI 思考日志…',
+            gameOver: '对局结束', playAgain: '再来一局',
+            initializing: '正在初始化…', thinking: 'AI 思考中…',
+            pleaseWait: '请稍候…', chooseVictim: '选择要吃的棋子',
+            networkError: '网络错误', aiLost: 'AI 连接中断',
+            unreachable: '无法连接引擎——服务还在运行吗？',
+            youWin: '你赢了！', youLose: '你输了！',
+            white: '白方', black: '黑方', combo: '[连吃]',
+            turn: (side, combo) => `轮到：${side} ${combo}`,
+            mem: n => `记忆: ${n}`,
+            cfgUnreachable: '无法连接引擎。',
+            cfgFailed: '应用失败。',
+            cfgMemory: '保留本地记忆',
+            cfgMemoryHint: '将搜索表保存在本机，跨对局保留',
+            cfgClearMemory: '清空记忆',
+            cfgClearConfirm: '确定清空引擎在本机积累的全部记忆？',
+            cfgReadOnly: '此版本没有设置接口——这里只有语言会生效。',
+            memCleared: '记忆已清空。',
+            memRestored: n => `已恢复记忆：${n} 条`,
+            cfgApplied: (t, th, h) => `已应用：${t} ms · ${th} 线程 · ${h} MB`,
+            cfgWasm: e => `WebAssembly 版 · 单线程 · 评估器: ${e}`,
+            cfgNative: (c, e) => `${c} 个核心可用 · 评估器: ${e}`,
+            bannerText: '完全在你的浏览器里运行——引擎编译成了 WebAssembly，没有服务器。',
+            bannerLink: '源码与原生版',
+            Checkmate: '绝杀', Crushing: '碾压', Advantage: '优势',
+            Balanced: '均势', Pressure: '承压', Critical: '危急',
+            Defeat: '败局', Resign: '投子'
+        }
+    };
+
+    let uiLang = (() => {
+        try {
+            const saved = localStorage.getItem('fanorona-lang');
+            if (saved === 'en' || saved === 'zh') return saved;
+        } catch (e) { /* private mode */ }
+        return /^zh\b/i.test(navigator.language || '') ? 'zh' : 'en';
+    })();
+
+    function t(key, ...args) {
+        const v = (I18N[uiLang] || I18N.en)[key];
+        if (v === undefined) return key;
+        return typeof v === 'function' ? v(...args) : v;
+    }
+
+    // The status line changes constantly and is not a fixed string, so it
+    // cannot carry a data-i18n tag -- re-applying one would overwrite "Black's
+    // turn" with "Connecting…". Instead it remembers *how* to render itself,
+    // and a language switch just runs that again.
+    let renderStatus = () => t('connecting');
+
+    function setStatus(fn) {
+        renderStatus = fn;
+        statusText.innerText = fn();
+    }
+
+    /** Re-renders every translated string. Safe to call at any time. */
+    function applyLanguage() {
+        document.documentElement.lang = uiLang === 'zh' ? 'zh' : 'en';
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const s = t(el.dataset.i18n);
+            if (s) el.innerText = s;
+        });
+        const sel = document.getElementById('cfg-lang');
+        if (sel) sel.value = uiLang;
+        statusText.innerText = renderStatus();
+        const msBox = document.getElementById('cfg-time-ms');
+        if (msBox) showTime(parseInt(msBox.value, 10) || 1000);
+        // The log holds one element per line; setting innerText would delete
+        // them, so the placeholder is only written while it is genuinely empty.
+        if (!aiPvLog.children.length) aiPvLog.innerText = t('logPlaceholder');
+    }
+
+    function setLanguage(next) {
+        uiLang = (next === 'zh') ? 'zh' : 'en';
+        try { localStorage.setItem('fanorona-lang', uiLang); } catch (e) { /* private mode */ }
+        applyLanguage();
+    }
+
+    function updateTurnText() {
+        setStatus(() => t('turn',
+            currentPlayer === 1 ? t('white') : t('black'),
+            comboInfo.inCombo ? t('combo') : ''));
+        statusText.style.color = currentPlayer === 1 ? "#fff" : "#aaa";
+    }
+
+    // Transport. The same UI runs two ways: against the local server over HTTP,
+    // or against the engine compiled to WebAssembly in a worker with no server
+    // at all. The WebAssembly build installs window.FanoronaEngine before this
+    // script runs; everything below just calls callEngine and neither knows nor
+    // cares which one answered.
+    //
+    // The shim returns a { json() } object so the call sites read exactly as
+    // they did when they were fetch().
+    function callEngine(path, opts) {
+        if (window.FanoronaEngine) return window.FanoronaEngine.call(path, opts);
+        return fetch(path, opts);
+    }
+
+    function appendLog(text) {
+        // The placeholder is a bare text node, so appending to it would leave
+        // "AI thinking log…" sitting above the first real line.
+        if (!aiPvLog.children.length) aiPvLog.innerText = '';
+        const p = document.createElement('div');
+        p.innerText = `> ${text}`;
+        aiPvLog.appendChild(p);
+        aiPvLog.scrollTop = aiPvLog.scrollHeight;
+    }
+
+    function getCoord(idx) {
+        let x = idx % 9;
+        let y = Math.floor(idx / 9);
+        if (isFlipped) {
+            x = 8 - x;
+            y = 4 - y;
+        }
+        return {x: OX + x * S, y: OY + y * S};
+    }
+
+    function drawBoardLines() {
+        let h = '';
+        const line = (c1, r1, c2, r2) => {
+            let p1 = getCoord(r1 * 9 + c1);
+            let p2 = getCoord(r2 * 9 + c2);
+            return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" />`;
+        };
+        for (let r = 0; r < ROWS; r++) h += line(0, r, 8, r);
+        for (let c = 0; c < COLS; c++) h += line(c, 0, c, 4);
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 8; c++) {
+                if ((r + c) % 2 === 0) h += line(c, r, c + 1, r + 1);
+                else h += line(c + 1, r, c, r + 1);
+            }
+        }
+        linesSvg.innerHTML = h;
+    }
+
+    function drawTrajectory() {
+        let html = trajectorySvg.querySelector('defs').outerHTML;
+        turnTrajectory.forEach(move => {
+            let p1 = getCoord(move.from);
+            let p2 = getCoord(move.to);
+            html += `<circle cx="${p1.x}" cy="${p1.y}" r="15" class="traj-circle" />`;
+            html += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="traj-line" marker-end="url(#arrowhead)" />`;
+        });
+        trajectorySvg.innerHTML = html;
+    }
+
+    // Updates the existing piece elements in place instead of rebuilding them.
+    //
+    // This used to wipe pieceLayer and recreate every div on each call, and
+    // refreshUI runs more than once per turn -- during a capture chain,
+    // nextTurn refreshes and then highlightSources -> selectPiece refreshes
+    // again. Each rebuild restarted the CSS transition on the selected piece,
+    // so its blue ring visibly popped in and out for the whole combo. Reusing
+    // the nodes means a class that was already applied simply stays applied.
+    function renderPieces() {
+        pieceLayer.querySelectorAll('.target').forEach(e => e.remove());
+
+        const occupied = new Set();
+        boardState.forEach((v, i) => {
+            if (v !== 0) occupied.add(i);
+        });
+        pieceLayer.querySelectorAll('.piece').forEach(el => {
+            if (!occupied.has(parseInt(el.dataset.idx, 10))) el.remove();
+        });
+
+        const humanTurn = !isGameOver && currentPlayer === mySide;
+        const locked = boardWrap.style.pointerEvents !== 'auto';
+
+        boardState.forEach((v, i) => {
+            if (v === 0) return;
+            let el = document.getElementById(`piece-${i}`);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = `piece-${i}`;
+                el.dataset.idx = i;
+                pieceLayer.appendChild(el);
+            }
+            const colour = v === 1 ? 'p1' : 'p2';
+            const selected = humanTurn && selectedPieceIndex === i;
+            const inactive = humanTurn ? (locked && !selected) : true;
+
+            // Wiping innerHTML used to drop every handler along with the nodes.
+            // Now that the nodes survive, the handlers have to be cleared here
+            // instead, or a piece stays clickable into the opponent's turn.
+            // highlightSources reattaches them straight afterwards.
+            el.onclick = null;
+            el.classList.remove('source', 'victim', 'victim-A', 'victim-B');
+            el.classList.add('piece', colour);
+            el.classList.remove(v === 1 ? 'p2' : 'p1', 'captured');
+            el.classList.toggle('selected', selected);
+            el.classList.toggle('inactive', inactive);
+
+            const p = getCoord(i);
+            el.style.left = p.x + 'px';
+            el.style.top = p.y + 'px';
+        });
+    }
+
+    async function animatePieceMovement(fromIndex, toIndex) {
+        return new Promise(resolve => {
+            const el = document.getElementById(`piece-${fromIndex}`);
+            if (!el) {
+                resolve();
+                return;
+            }
+            let p = getCoord(toIndex);
+            el.classList.add('moving');
+            el.style.left = p.x + 'px';
+            el.style.top = p.y + 'px';
+            let isResolved = false;
+            const finish = () => {
+                if (isResolved) return;
+                isResolved = true;
+                el.classList.remove('moving');
+                // Re-key the element to where it now stands, so the next render
+                // reuses this node rather than deleting it and building a fresh
+                // one at the same spot.
+                el.id = `piece-${toIndex}`;
+                el.dataset.idx = toIndex;
+                resolve();
+            };
+            el.addEventListener('transitionend', finish, {once: true});
+            setTimeout(finish, 420);
+        });
+    }
+
+    /** Shrinks captured pieces away before the board state replaces them. */
+    async function animateCaptures(victims) {
+        if (!victims || !victims.length) return;
+        let any = false;
+        victims.forEach(idx => {
+            const el = document.getElementById(`piece-${idx}`);
+            if (el) {
+                el.classList.add('captured');
+                any = true;
+            }
+        });
+        if (any) await sleep(260);
+    }
+
+    function highlightSources() {
+        if (currentPlayer !== mySide || isGameOver) return;
+        document.querySelectorAll('.piece').forEach(el => {
+            el.classList.remove('inactive', 'source');
+            el.onclick = null;
+        });
+        const sourceIndices = new Set(gameMoves.filter(m => m.type !== 'stop').map(m => m.from));
+        sourceIndices.forEach(idx => {
+            const el = document.getElementById(`piece-${idx}`);
+            if (el) {
+                el.classList.add('source');
+                el.onclick = (e) => {
+                    e.stopPropagation();
+                    selectPiece(idx);
+                };
+            }
+        });
+        if (comboInfo.inCombo && comboInfo.comboPiece !== null) selectPiece(comboInfo.comboPiece);
+    }
+
+    function selectPiece(idx) {
+        if (currentPlayer !== mySide || isGameOver) return;
+        if (selectedPieceIndex === idx && !comboInfo.inCombo) {
+            selectedPieceIndex = null;
+            refreshUI();
+            return;
+        }
+        selectedPieceIndex = idx;
+        refreshUI();
+        const movesFromHere = gameMoves.filter(m => m.from === idx);
+        const uniqueTargets = [...new Set(movesFromHere.map(m => m.to))];
+        document.querySelectorAll('.target').forEach(e => e.remove());
+        uniqueTargets.forEach(toIdx => {
+            if (comboInfo.inCombo && comboInfo.visited.includes(toIdx)) return;
+            const t = document.createElement('div');
+            t.className = 'target';
+            let p = getCoord(toIdx);
+            t.style.left = p.x + 'px';
+            t.style.top = p.y + 'px';
+            t.onclick = (e) => {
+                e.stopPropagation();
+                checkAmbiguity(idx, toIdx);
+            };
+            pieceLayer.appendChild(t);
+        });
+    }
+
+    function checkAmbiguity(from, to) {
+        const candidates = gameMoves.filter(m => m.from === from && m.to === to);
+        if (candidates.length === 1) executeMove(candidates[0]);
+        else showAmbiguity(candidates);
+    }
+
+    function showAmbiguity(moves) {
+        document.querySelectorAll('.target').forEach(e => e.remove());
+        setStatus(() => t('chooseVictim'));
+        moves.forEach((move, i) => {
+            const cls = i === 0 ? 'victim-A' : 'victim-B';
+            move.victims.forEach(vIdx => {
+                const el = document.getElementById(`piece-${vIdx}`);
+                if (el) {
+                    el.classList.remove('inactive');
+                    el.classList.add('victim', cls);
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        executeMove(move);
+                    };
+                }
+            });
+        });
+    }
+
+    async function executeMove(move) {
+        const txId = currentGameId;
+        document.querySelectorAll('.target').forEach(e => e.remove());
+        document.querySelectorAll('.victim').forEach(e => e.classList.remove('victim', 'victim-A', 'victim-B'));
+        selectedPieceIndex = null;
+        // Built before the animation so the request can be sent while the
+        // pieces are still moving; every field describes the position the move
+        // is being made *from*, and nothing below alters it.
+        const payload = {
+            board: boardState, player: currentPlayer,
+            inCombo: comboInfo.inCombo, comboPiece: comboInfo.comboPiece,
+            prevPos: comboInfo.prevPos, visited: comboInfo.visited,
+            action_id: move.action_id
+        };
+        // The failure is captured rather than left to reject on its own: this
+        // promise is not awaited until the animation is over, and an unhandled
+        // rejection in between would surface as a console error before the
+        // catch below ever ran.
+        const pending = callEngine('/move', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        }).then(r => ({ok: true, r: r}), e => ({ok: false, e: e}));
+        if (move.from !== undefined && move.to !== undefined) {
+            turnTrajectory.push({from: move.from, to: move.to});
+            drawTrajectory();
+            // Together, not one after the other. Sequentially this cost the
+            // slide plus the shrink -- about half a second before the board
+            // would answer a click again, most of it spent watching an already
+            // finished move. They touch different pieces, so there is nothing
+            // to serialise, and a capture reads better as something that
+            // happens *during* the move than as an epilogue to it.
+            await Promise.all([
+                animatePieceMovement(move.from, move.to),
+                animateCaptures(move.victims)
+            ]);
+        }
+        try {
+            const settled = await pending;
+            if (!settled.ok) throw settled.e;
+            const res = settled.r;
+            if (currentGameId !== txId) return;
+            const d = await res.json();
+            applyServerState(d);
+            if (d.win) endGame(d.player === mySide);
+            else await nextTurn();
+        } catch (e) {
+            if (currentGameId === txId) setStatus(() => t('networkError'));
+        }
+    }
+
+    async function sendStop() {
+        await executeMove({action_id: 720});
+    }
+
+    async function triggerRestart() {
+        currentGameId++;
+        const txId = currentGameId;
+        isGameOver = false;
+
+        boardState = Array(45).fill(0);
+        for (let i = 0; i < 18; i++) boardState[i] = 1;
+        for (let i = 27; i < 45; i++) boardState[i] = -1;
+        [1, -1, 1, -1, 0, 1, -1, 1, -1].forEach((v, i) => boardState[18 + i] = v);
+
+        currentPlayer = 1;
+        comboInfo = {inCombo: false, comboPiece: null, prevPos: null, visited: []};
+        selectedPieceIndex = null;
+        lastPlayer = 1;
+        turnTrajectory = [];
+        mySide = parseInt(sideSelect.value);
+
+        gameOverOverlay.classList.remove('visible');
+        setTimeout(() => gameOverOverlay.style.display = 'none', 500);
+        aiPvLog.innerText = t('logPlaceholder');
+        strategyTag.style.display = 'none';
+
+        setLoading(false);
+        refreshUI();
+
+        try {
+            setStatus(() => t('initializing'));
+            setLoading(true);
+            await callEngine('/restart', {method: 'POST'});
+            if (currentGameId !== txId) return;
+            setLoading(false);
+            await nextTurn();
+        } catch (e) {
+            console.error(e);
+            setStatus(() => t('unreachable'));
+            setLoading(false);
+        }
+    }
+
+    async function nextTurn() {
+        // Not awaited: it only feeds a counter in the corner, and waiting for
+        // it put a round trip in front of everything the player is actually
+        // waiting for -- the legal moves, the green dots, the Stop button.
+        updateMemStats();
+        if (isGameOver) return;
+        const txId = currentGameId;
+        refreshUI();
+        if (lastPlayer !== currentPlayer) {
+            turnTrajectory = [];
+            drawTrajectory();
+            lastPlayer = currentPlayer;
+        }
+        updateTurnText();
+
+        try {
+            const res = await callEngine('/get_state', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    board: boardState, player: currentPlayer,
+                    inCombo: comboInfo.inCombo, comboPiece: comboInfo.comboPiece,
+                    prevPos: comboInfo.prevPos, visited: comboInfo.visited
+                })
+            });
+            if (currentGameId !== txId) return;
+            const d = await res.json();
+            gameMoves = d.moves;
+
+            if (gameMoves.length === 0 && !comboInfo.inCombo) {
+                endGame(false);
+                return;
+            }
+
+            const canStop = gameMoves.some(m => m.type === 'stop');
+            stopBtn.disabled = !canStop || (currentPlayer !== mySide);
+
+            if (currentPlayer === mySide) highlightSources();
+            else {
+                setLoading(true);
+                setTimeout(() => runAI(txId), 200);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function runAI(txId) {
+        if (currentGameId !== txId) return;
+        try {
+            setStatus(() => t('thinking'));
+            const res = await callEngine('/ai', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    board: boardState, player: currentPlayer,
+                    inCombo: comboInfo.inCombo, comboPiece: comboInfo.comboPiece,
+                    prevPos: comboInfo.prevPos, visited: comboInfo.visited
+                })
+            });
+            if (currentGameId !== txId) return;
+            const d = await res.json();
+
+            if (d.pv) {
+                appendLog(`Score(${d.score}): ${d.pv}`);
+            }
+
+            if (d.strategy) {
+                strategyTag.innerText = t(d.strategy);
+                strategyTag.style.display = 'block';
+
+                const colorMap = {
+                    "Checkmate": {bg: "#2e7d32", text: "#fff"},
+                    "Crushing": {bg: "#4caf50", text: "#fff"},
+                    "Advantage": {bg: "#8bc34a", text: "#000"},
+                    "Balanced": {bg: "#ff9800", text: "#000"},
+                    "Pressure": {bg: "#fb8c00", text: "#fff"},
+                    "Critical": {bg: "#e53935", text: "#fff"},
+                    "Defeat": {bg: "#b71c1c", text: "#fff"}
+                };
+
+                const style = colorMap[d.strategy] || {bg: "#555", text: "#fff"};
+                strategyTag.style.background = style.bg;
+                strategyTag.style.color = style.text;
+            }
+
+            const aiAction = gameMoves.find(m => m.action_id === d.action_id) || (d.action_id === 720 ? {action_id: 720} : null);
+            setLoading(false);
+
+            if (aiAction) {
+                await sleep(300); // sleep 300ms
+                await executeMove(aiAction);
+            } else if (d.action_id === 720) {
+                await sleep(300);
+                await executeMove({action_id: 720});
+            }
+        } catch (e) {
+            if (currentGameId === txId) {
+                setLoading(false);
+                setStatus(() => t('aiLost'));
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- settings
+
+    // Thinking time spans five orders of magnitude, and the interesting part is
+    // at the bottom: the difference between 5ms and 50ms decides whether a human
+    // can win at all, while the difference between 30s and 60s decides almost
+    // nothing. A linear slider spends nearly all its travel on the range nobody
+    // needs, so this one is logarithmic, with a number box beside it for people
+    // who want an exact value.
+    const TIME_MIN_MS = 1, TIME_MAX_MS = 600000;
+
+    function sliderToMs(p) {
+        return Math.round(TIME_MIN_MS * Math.pow(TIME_MAX_MS / TIME_MIN_MS, p / 1000));
+    }
+
+    function msToSlider(ms) {
+        ms = Math.min(TIME_MAX_MS, Math.max(TIME_MIN_MS, ms));
+        return Math.round(1000 * Math.log(ms / TIME_MIN_MS) / Math.log(TIME_MAX_MS / TIME_MIN_MS));
+    }
+
+    function timeHint(ms) {
+        if (ms < 30) return t('hintTrivial');
+        if (ms < 300) return t('hintEasy');
+        if (ms < 3000) return t('hintHard');
+        return t('hintBrutal');
+    }
+
+    function showTime(ms) {
+        document.getElementById('cfg-time-hint').innerText = timeHint(ms);
+    }
+
+    function onTimeSlider() {
+        const ms = sliderToMs(parseInt(document.getElementById('cfg-time').value, 10));
+        document.getElementById('cfg-time-ms').value = ms;
+        showTime(ms);
+    }
+
+    function onTimeNumber() {
+        const raw = parseInt(document.getElementById('cfg-time-ms').value, 10);
+        if (!Number.isFinite(raw)) return;
+        document.getElementById('cfg-time').value = msToSlider(raw);
+        showTime(raw);
+    }
+
+    // Whether there is an engine on the other end of /config. The Java
+    // reference server has no such endpoint and neither does a file:// open,
+    // and the panel used to hide itself entirely in those cases -- which also
+    // hid the language picker, the one setting that works everywhere.
+    let engineConfigurable = true;
+
+    // Settings used to live only in the engine process, so a refresh threw them
+    // away and you had to set your thinking time again every visit. They are
+    // mirrored here and replayed on load; the engine stays the source of truth
+    // for what is *currently* in effect, this is only what to ask it for.
+    const SETTINGS_KEY = 'fanorona-settings';
+
+    function storedSettings() {
+        try {
+            return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {};
+        } catch (e) {
+            return {};   // private mode, or something else wrote to the key
+        }
+    }
+
+    function saveSettings(s) {
+        try {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+        } catch (e) { /* private mode: settings simply do not persist */ }
+    }
+
+    function toggleSettings() {
+        const panel = document.getElementById('settings-panel');
+        panel.classList.toggle('open');
+        if (panel.classList.contains('open')) loadSettings();
+    }
+
+    /**
+     * Greys out the rows that need an engine to mean anything.
+     *
+     * The language row is deliberately left alone: it is pure interface state,
+     * stored locally, and works whether or not anything is listening.
+     */
+    function markEngineRows() {
+        if (engineConfigurable) return;
+        const rows = document.querySelectorAll('#settings-panel .settings-row');
+        rows.forEach(row => {
+            if (!row.querySelector('#cfg-lang') && !row.classList.contains('settings-actions'))
+                row.classList.add('disabled');
+        });
+        document.querySelector('.settings-actions button').disabled = true;
+        document.getElementById('cfg-status').innerText = t('cfgReadOnly');
+    }
+
+    async function loadSettings() {
+        if (!engineConfigurable) {
+            document.getElementById('cfg-lang').value = uiLang;
+            markEngineRows();
+            return;
+        }
+        try {
+            const c = await (await callEngine('/config')).json();
+            document.getElementById('cfg-time-ms').value = c.time;
+            document.getElementById('cfg-time').value = msToSlider(c.time);
+            showTime(c.time);
+            // Offer the machine's real core count rather than a fixed 16.
+            const tSlider = document.getElementById('cfg-threads');
+            tSlider.max = Math.max(1, c.cores || 8);
+            tSlider.value = c.threads;
+            document.getElementById('cfg-threads-val').innerText = c.threads;
+            document.getElementById('cfg-depth').value = c.depth;
+            // The browser build's heap is fixed at 192 MB and cannot grow, so
+            // offering 8 GB there is offering a crash. Native has no such limit.
+            const hash = document.getElementById('cfg-hash');
+            hash.max = c.wasm ? 128 : 8192;
+            hash.value = Math.min(c.hash, parseInt(hash.max, 10));
+            document.getElementById('cfg-memory').checked = c.memory !== false;
+            // The interface language wins over whatever the engine happens to
+            // be set to: the user picked it, and it is stored locally.
+            document.getElementById('cfg-lang').value = uiLang;
+            document.getElementById('cfg-debug').checked = !!c.debug;
+            // The browser build has no threads to offer, so don't show a
+            // slider that can only ever sit at 1.
+            document.getElementById('cfg-threads-row').style.display =
+                (c.wasm || c.cores <= 1) ? 'none' : '';
+            document.getElementById('cfg-status').innerText = c.wasm
+                ? t('cfgWasm', c.eval)
+                : t('cfgNative', c.cores, c.eval);
+        } catch (e) {
+            document.getElementById('cfg-status').innerText = t('cfgUnreachable');
+        }
+    }
+
+    async function applySettings() {
+        const status = document.getElementById('cfg-status');
+        const lang = document.getElementById('cfg-lang').value;
+        setLanguage(lang);
+        if (!engineConfigurable) { markEngineRows(); return; }
+        const hashInput = document.getElementById('cfg-hash');
+        const hashMax = parseInt(hashInput.max, 10) || 8192;
+        const body = {
+            time: parseInt(document.getElementById('cfg-time-ms').value, 10),
+            depth: parseInt(document.getElementById('cfg-depth').value, 10),
+            threads: parseInt(document.getElementById('cfg-threads').value, 10),
+            hash: Math.min(parseInt(hashInput.value, 10) || 1, hashMax),
+            english: lang === 'en' ? 1 : 0,
+            debug: document.getElementById('cfg-debug').checked ? 1 : 0,
+            memory: document.getElementById('cfg-memory').checked ? 1 : 0
+        };
+        hashInput.value = body.hash;
+        saveSettings(Object.assign({}, body, {lang: lang}));
+        try {
+            const c = await (await callEngine('/config', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            })).json();
+            status.innerText = t('cfgApplied', c.time, c.threads, c.hash);
+        } catch (e) {
+            status.innerText = t('cfgFailed');
+        }
+    }
+
+    /**
+     * Throws away everything the engine has learned, on this device.
+     *
+     * Confirmed first because it is not undoable and the table can represent
+     * hours of play. The engine clears both its live table and the stored copy;
+     * clearing one without the other would just restore it on the next load.
+     */
+    async function clearMemory() {
+        if (!window.confirm(t('cfgClearConfirm'))) return;
+        const status = document.getElementById('cfg-status');
+        try {
+            await callEngine('/clear_memory', {method: 'POST'});
+            status.innerText = t('memCleared');
+            updateMemStats();
+        } catch (e) {
+            status.innerText = t('cfgFailed');
+        }
+    }
+
+    async function updateMemStats() {
+        try {
+            const r = await callEngine('/memory_stats');
+            const d = await r.json();
+            memStats.innerText = t('mem', d.count);
+        } catch (e) {
+        }
+    }
+
+    function refreshUI() {
+        drawBoardLines();
+        drawTrajectory();
+        renderPieces();
+    }
+
+    /**
+     * Shrinks the fixed 900x500 board to fit narrow screens.
+     *
+     * The wrapper has to carry the scaled height explicitly: a transformed
+     * element still occupies its original layout box, so without this the page
+     * would leave a few hundred pixels of empty space below the board.
+     */
+    function fitBoard() {
+        const holder = document.getElementById('board-scale');
+        const scale = Math.min(1, window.innerWidth / 900);
+        if (scale >= 1) {
+            boardWrap.style.transform = '';
+            holder.style.width = '900px';
+            holder.style.height = '';
+        } else {
+            boardWrap.style.transform = `scale(${scale})`;
+            holder.style.width = '100%';
+            holder.style.height = (520 * scale) + 'px';
+        }
+    }
+
+    window.addEventListener('resize', fitBoard);
+
+    function toggleFlip() {
+        isFlipped = !isFlipped;
+        const savedSelection = selectedPieceIndex;
+        selectedPieceIndex = null;
+        refreshUI();
+        if (currentPlayer === mySide && !isGameOver) {
+            highlightSources();
+            if (savedSelection !== null) {
+                const el = document.getElementById(`piece-${savedSelection}`);
+                if (el && !el.classList.contains('inactive')) {
+                    selectPiece(savedSelection);
+                }
+            }
+        }
+    }
+
+    function onBgClick(e) {
+        if (isGameOver) return;
+        if (e.target.id === 'board-wrap' || e.target.id === 'lines' || e.target.id === 'trajectory') {
+            if (selectedPieceIndex !== null && !comboInfo.inCombo && currentPlayer === mySide) {
+                selectedPieceIndex = null;
+                refreshUI();
+                highlightSources();
+            }
+        }
+    }
+
+    function setLoading(isLoading) {
+        if (isLoading) {
+            statusSpinner.style.display = 'block';
+            setStatus(() => currentPlayer === mySide ? t('pleaseWait') : t('thinking'));
+            boardWrap.style.pointerEvents = 'none';
+        } else {
+            statusSpinner.style.display = 'none';
+            boardWrap.style.pointerEvents = 'auto';
+        }
+    }
+
+    function applyServerState(d) {
+        boardState = d.board;
+        currentPlayer = d.player;
+        comboInfo = {inCombo: d.inCombo, comboPiece: d.comboPiece, prevPos: d.prevPos, visited: d.visited || []};
+        // The reply to /move already says whether the chain continues, so the
+        // piece can stay selected through the /get_state round trip that comes
+        // next. Without this it is rendered deselected in between -- ring gone,
+        // shrunk back to normal size -- and then re-selected a moment later
+        // when highlightSources gets around to it, which reads as a flicker in
+        // the middle of every capture chain.
+        if (comboInfo.inCombo && comboInfo.comboPiece !== null && comboInfo.comboPiece >= 0
+            && currentPlayer === mySide) {
+            selectedPieceIndex = comboInfo.comboPiece;
+        }
+    }
+
+    function endGame(win) {
+        isGameOver = true;
+        setLoading(false);
+        gameOverOverlay.style.display = 'flex';
+        setTimeout(() => gameOverOverlay.classList.add('visible'), 10);
+        winnerText.innerText = win ? t('youWin') : t('youLose');
+        winnerText.style.color = win ? "#00e676" : "#ff1744";
+    }
+
+    window.onload = async () => {
+        applyLanguage();
+        // Switch the whole interface the moment the dropdown changes, rather
+        // than making the user hit Apply to find out what they picked.
+        document.getElementById('cfg-lang').addEventListener('change', e => {
+            setLanguage(e.target.value);
+        });
+        // One round trip does three jobs: it restores whatever the user chose
+        // last visit, it tells the engine which language to trash-talk in so a
+        // first-time visitor's banter matches the interface without them
+        // touching settings, and its success tells us whether there is a
+        // settings endpoint at all.
+        const saved = storedSettings();
+        try {
+            const r = await callEngine('/config', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(Object.assign({}, saved, {
+                    lang: undefined,
+                    english: uiLang === 'en' ? 1 : 0
+                }))
+            });
+            if (!r.ok) throw new Error('no config endpoint');
+            await r.json();
+        } catch (e) {
+            // No engine settings here. Keep the panel reachable anyway -- the
+            // language picker lives in it and works regardless.
+            engineConfigurable = false;
+        }
+        // The browser build reports how much of its previous table it got back.
+        // Nothing used to read it, which made the whole persistence feature
+        // invisible -- you could only infer it from the engine playing well
+        // sooner than it should.
+        if (window.FanoronaEngine) {
+            window.FanoronaEngine.ready
+                .then(r => r.json())
+                .then(d => { if (d.restored > 0) appendLog(t('memRestored', d.restored)); })
+                .catch(() => {});
+        }
+        fitBoard();
+        triggerRestart();
+    };
+
+</script>
+</body>
+</html>

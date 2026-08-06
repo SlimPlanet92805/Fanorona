@@ -1,0 +1,15 @@
+# Benchmark positions for the Java/C++ parity check.
+# Format: <45 board chars .wb> <player> <inCombo> <comboPiece> <prevPos> <visitedHex>
+# Regenerate with: --bench-gen
+# 0: opening (initial position)
+wwwwwwwwwwwwwwwwwwwbwb.wbwbbbbbbbbbbbbbbbbbbb 1 0 -1 -1 0
+# 1: early game
+www.w.wwwwwwww.wwwwbw...bwbbbb.b.bbbbbb.b.bbb -1 0 -1 -1 0
+# 2: midgame
+......ww..w..w.w.w...b...wb....bbbbb..b...bbb 1 0 -1 -1 0
+# 3: late game
+...w...wb.w.....w.....................b...... 1 1 16 25 2010000
+# 4: mid-capture chain (inCombo)
+wwwww.wwwwww.w.wwwwbwbw.bwbbbbbbbbbbbbbbb..bb -1 1 32 41 20100000000
+# 5: terminal (game over: no moves, or opponent wiped out)
+.......w..w.w...........w.................... 1 0 -1 -1 1010

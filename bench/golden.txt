@@ -1,0 +1,8 @@
+# fanorona bench depth=8 positions=6
+0 nodes=949735 ttHits=26012 score=-114 bestMove=99
+1 nodes=384638 ttHits=14189 score=1 bestMove=248
+2 nodes=4668 ttHits=84 score=89999951 bestMove=124
+3 nodes=16510 ttHits=3892 score=322 bestMove=493
+4 nodes=448071 ttHits=8982 score=-200 bestMove=619
+5 nodes=54 ttHits=0 score=89999951 bestMove=99
+# total nodes=1803676 ttHits=53159

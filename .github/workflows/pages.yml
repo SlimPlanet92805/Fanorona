@@ -1,0 +1,60 @@
+# Builds the WebAssembly page and publishes it to GitHub Pages.
+#
+# This is what makes the project playable from a link. The alternative --
+# download a release, unzip it, run a binary, trust it -- is a funnel almost
+# nobody walks through for a board game they have never heard of.
+#
+# The wasm build is deliberately single-threaded. GitHub Pages cannot send the
+# COOP/COEP headers that SharedArrayBuffer requires, and the search does not
+# need them, so there is nothing to work around here.
+#
+# ONE-TIME SETUP: repository Settings -> Pages -> Source: "GitHub Actions".
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'engine/src/**'
+      - 'src/main/resources/game.html'
+      - 'scripts/build-web.py'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Queue rather than cancel, so a push landing mid-deploy still gets published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+          actions-cache-folder: emsdk-cache
+
+      - name: Build the WebAssembly page
+        run: python3 scripts/build-web.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
